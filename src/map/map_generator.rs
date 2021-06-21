@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use noise::{NoiseFn, SuperSimplex};
 
+use crate::utils::inverse_lerp;
+
 use super::{MapGeneratedEvent, HEIGHT, WIDTH};
 
 #[derive(Inspectable)]
@@ -10,28 +12,22 @@ pub struct NoiseSettings {
     pub offset: Vec2,
     #[inspectable(min = 1, max = 8)]
     pub octaves: i32,
-    #[inspectable(min = 1.0, max = 10.0)]
-    pub base_frequency: f32,
-    #[inspectable(min = 0.0, max = 10.0)]
-    pub roughness: f32,
-    #[inspectable(min = 0.05, max = 2.5, speed = 0.05)]
+    #[inspectable(min = 0.0, max = 4.0, speed = 0.1)]
+    pub lacunarity: f32,
+    #[inspectable(min = 0.0, max = 1.0, speed = 0.1)]
     pub persistence: f32,
-    #[inspectable(min = 0.0, max = 4.0)]
-    pub min_value: f32,
-    #[inspectable(min = 0.05, max = 2.5, speed = 0.05)]
-    pub strength: f32,
+    #[inspectable(min = 0.1, max = 2.0, speed = 0.1)]
+    pub scale: f32,
 }
 
 impl Default for NoiseSettings {
     fn default() -> Self {
         Self {
             offset: Vec2::splat(0.0),
-            octaves: 8,
-            base_frequency: 1.0,
-            roughness: 5.0,
-            persistence: 0.05,
-            min_value: 0.0,
-            strength: 0.05,
+            octaves: 4,
+            lacunarity: 2.0,
+            persistence: 0.5,
+            scale: 1.0,
         }
     }
 }
@@ -54,32 +50,46 @@ pub fn generate_map(
     let extent = bounds.1 - bounds.0;
     let step = extent as f64 / WIDTH as f64;
 
+    let mut min = std::f32::MAX;
+    let mut max = std::f32::MIN;
+
     for y in 0..HEIGHT {
         let current_y = bounds.0 + step * y as f64;
         for x in 0..WIDTH {
             let current_x = bounds.0 + step * x as f64;
 
+            let mut amplitude = 1.;
+            let mut frequency = 1.;
             let mut elevation = 0.0;
-            let mut frequency = noise_settings.base_frequency;
-            let mut amplitude = 1.0;
-            let mut amplitude_sum = 0.0;
 
             for _ in 0..noise_settings.octaves {
-                let point = Vec2::new(current_x as f32, current_y as f32) * frequency
-                    + noise_settings.offset;
+                let mut sample_point = Vec2::new(current_x as f32, current_y as f32);
+                sample_point = sample_point / noise_settings.scale * frequency;
+                sample_point += noise_settings.offset;
 
-                let noise_value = noise.get([point.x as f64, point.y as f64, 0.0]);
-                let noise_value = (noise_value + 1.0) * 0.5;
+                let noise_value = noise.get([sample_point.x as f64, sample_point.y as f64, 0.0]);
+
                 elevation += noise_value as f32 * amplitude;
-                frequency *= noise_settings.roughness;
+
                 amplitude *= noise_settings.persistence;
-                amplitude_sum += amplitude
+                frequency *= noise_settings.lacunarity;
             }
-            elevation /= amplitude_sum;
-            elevation = (elevation - noise_settings.min_value).max(0.0);
-            let map_idx = y * WIDTH + x;
-            map.elevation[map_idx] = elevation * noise_settings.strength;
+            if elevation > max {
+                max = elevation;
+            } else if elevation < min {
+                min = elevation;
+            }
+
+            map.elevation[y * WIDTH + x] = elevation;
         }
     }
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let map_idx = y * WIDTH + x;
+            // TODO maybe do this in the renderer since it's already looping on everything
+            map.elevation[map_idx] = inverse_lerp(min, max, map.elevation[map_idx]);
+        }
+    }
+
     event.send(MapGeneratedEvent);
 }

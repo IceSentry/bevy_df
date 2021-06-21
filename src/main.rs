@@ -9,6 +9,7 @@ use simplelog::{self, ColorChoice, Config, LevelFilter, TermLogger, TerminalMode
 mod camera;
 mod input;
 pub mod map;
+mod utils;
 
 pub fn set_texture_filters_to_nearest(
     mut texture_events: EventReader<AssetEvent<Texture>>,

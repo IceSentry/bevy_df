@@ -15,8 +15,8 @@ pub mod map_renderer;
 
 pub const CHUNK_WIDTH: u32 = 64;
 pub const CHUNK_HEIGHT: u32 = 64;
-pub const MAP_WIDTH: u32 = 4;
-pub const MAP_HEIGHT: u32 = 4;
+pub const MAP_WIDTH: u32 = 2;
+pub const MAP_HEIGHT: u32 = 2;
 pub const WIDTH: usize = MAP_WIDTH as usize * CHUNK_WIDTH as usize;
 pub const HEIGHT: usize = MAP_HEIGHT as usize * CHUNK_HEIGHT as usize;
 pub const Z_LEVELS: u16 = 20;

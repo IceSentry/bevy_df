@@ -20,7 +20,6 @@ pub fn update_map_state(
     if !map_renderer_data.is_changed() {
         return;
     }
-
     for layer_id in 0..Z_LEVELS {
         if layer_id > map_renderer_data.current_z_level
             && map_renderer_data.visible_layers[layer_id as usize]
@@ -75,22 +74,23 @@ fn iterate_layer<F: FnMut(u32, u32)>(mut f: F) {
 
 pub fn draw_map(
     mut tile_query: Query<(&mut Tile, &TileParent, &UVec2)>,
-    mut chunk_query: Query<&mut Chunk>,
+    mut map_query: MapQuery,
     map_generator_data: Res<MapGeneratorData>,
     mut events: EventReader<MapGeneratedEvent>,
 ) {
     for _ in events.iter() {
         let mut chunks = HashSet::new();
-
         for (mut tile, tile_parent, pos) in tile_query.iter_mut() {
             let i = pos.y as usize * WIDTH + pos.x as usize;
             let z_level = tile_parent.layer_id as f32 * ELEVATION_MULTIPLIER;
             let elevation = map_generator_data.elevation[i];
 
+            // TODO use this to figure out which corner piece to use
+            // let neighbors = map_query.get_tile_neighbors(*pos, 0u16, tile_parent.layer_id);
+
+            // TODO use enum or something else instead of hardcoding this
             tile.texture_index = if (elevation - z_level).abs() < ELEVATION_MULTIPLIER {
-                if elevation < 0.05 {
-                    15 // bedrock
-                } else if elevation < 0.2 {
+                if elevation < 0.2 {
                     0 // deep water
                 } else if elevation < 0.35 {
                     1 // water
@@ -116,9 +116,7 @@ pub fn draw_map(
         }
 
         for chunk_entity in chunks.drain() {
-            if let Ok(mut chunk) = chunk_query.get_mut(chunk_entity) {
-                chunk.needs_remesh = true;
-            }
+            map_query.notify_chunk(chunk_entity);
         }
     }
 }
