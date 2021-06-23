@@ -2,10 +2,9 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use std::collections::HashSet;
 
-use super::{
-    map_generator::MapGeneratorData, MapGeneratedEvent, ELEVATION_MULTIPLIER, HEIGHT, WIDTH,
-    Z_LEVELS,
-};
+use crate::map::map_generator::TileType;
+
+use super::{map_generator::MapGeneratorData, MapGeneratedEvent, HEIGHT, WIDTH, Z_LEVELS};
 
 pub struct MapRendererData {
     pub visible_layers: Vec<bool>,
@@ -81,37 +80,22 @@ pub fn draw_map(
     for _ in events.iter() {
         let mut chunks = HashSet::new();
         for (mut tile, tile_parent, pos) in tile_query.iter_mut() {
-            let i = pos.y as usize * WIDTH + pos.x as usize;
-            let z_level = tile_parent.layer_id as f32 * ELEVATION_MULTIPLIER;
-            let elevation = map_generator_data.elevation[i];
+            let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
+            let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
+            tile.texture_index = if tile_data.visible {
+                match tile_data.value {
+                    TileType::Air => 12,
+                    TileType::Water => 1,
+                    TileType::Grass => 4,
+                    TileType::Rock => 5,
+                }
+            } else {
+                15 // black
+            };
 
             // TODO use this to figure out which corner piece to use
             // let neighbors = map_query.get_tile_neighbors(*pos, 0u16, tile_parent.layer_id);
 
-            // TODO use enum or something else instead of hardcoding this
-            tile.texture_index = if (elevation - z_level).abs() < ELEVATION_MULTIPLIER {
-                if elevation < 0.2 {
-                    0 // deep water
-                } else if elevation < 0.35 {
-                    1 // water
-                } else if elevation < 0.4 {
-                    2 // grass
-                } else if elevation < 0.45 {
-                    3 // grass
-                } else if elevation < 0.75 {
-                    4 // trees
-                } else if elevation < 0.9 {
-                    5 // rock
-                } else if elevation < 0.95 {
-                    6 // rock
-                } else {
-                    7 // snow
-                }
-            } else if elevation > z_level {
-                15 // black
-            } else {
-                12 // transparent
-            };
             chunks.insert(tile_parent.chunk);
         }
 

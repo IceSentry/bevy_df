@@ -4,7 +4,7 @@ use noise::{NoiseFn, SuperSimplex};
 
 use crate::utils::inverse_lerp;
 
-use super::{MapGeneratedEvent, HEIGHT, WIDTH};
+use super::{MapGeneratedEvent, ELEVATION_MULTIPLIER, HEIGHT, WIDTH, Z_LEVELS};
 
 #[derive(Inspectable)]
 pub struct NoiseSettings {
@@ -32,10 +32,64 @@ impl Default for NoiseSettings {
     }
 }
 
-pub struct MapGeneratorData {
-    pub elevation: Vec<f32>,
+#[derive(Copy, Clone, Default)]
+pub struct Tile {
+    pub visible: bool,
+    pub value: TileType,
 }
 
+#[derive(Copy, Clone)]
+pub enum TileType {
+    Air,
+    Water,
+    Grass,
+    Rock,
+}
+
+impl Default for TileType {
+    fn default() -> Self {
+        TileType::Air
+    }
+}
+
+#[derive(Clone)]
+pub struct Layer {
+    data: Vec<Tile>,
+}
+
+impl Layer {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
+            data: vec![Tile::default(); width * height],
+        }
+    }
+}
+
+impl Layer {
+    pub fn get_tile(&self, x: usize, y: usize) -> &Tile {
+        &self.data[y * WIDTH + x]
+    }
+
+    pub fn set_tile(&mut self, x: usize, y: usize, new_tile: Tile) {
+        self.data[y * WIDTH + x] = new_tile;
+    }
+}
+
+pub struct MapGeneratorData {
+    pub elevation: Vec<f32>,
+    pub layers: Vec<Layer>,
+}
+
+impl MapGeneratorData {
+    pub fn new(width: usize, height: usize, z_levels: usize) -> Self {
+        Self {
+            elevation: vec![0.0; width * height],
+            layers: vec![Layer::new(width, height); z_levels],
+        }
+    }
+}
+
+// TODO try to avoid using constants to make it more dynamic
 pub fn generate_map(
     noise: Res<SuperSimplex>,
     noise_settings: Res<NoiseSettings>,
@@ -83,11 +137,48 @@ pub fn generate_map(
             map.elevation[y * WIDTH + x] = elevation;
         }
     }
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            let map_idx = y * WIDTH + x;
-            // TODO maybe do this in the renderer since it's already looping on everything
-            map.elevation[map_idx] = inverse_lerp(min, max, map.elevation[map_idx]);
+
+    for z in 0..Z_LEVELS {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                let map_idx = y * WIDTH + x;
+                if z == 0 {
+                    // we only need to normalize this once
+                    map.elevation[map_idx] = inverse_lerp(min, max, map.elevation[map_idx]);
+                }
+                let elevation = map.elevation[map_idx];
+                let z_level = z as f32 * ELEVATION_MULTIPLIER;
+                let tile = if (elevation - z_level).abs() < ELEVATION_MULTIPLIER {
+                    if elevation <= 0.35 {
+                        Tile {
+                            value: TileType::Water,
+                            visible: true,
+                        }
+                    } else if elevation <= 0.75 {
+                        Tile {
+                            value: TileType::Grass,
+                            visible: true,
+                        }
+                    } else {
+                        Tile {
+                            value: TileType::Rock,
+                            visible: true,
+                        }
+                    }
+                } else if elevation > z_level as f32 {
+                    Tile {
+                        value: TileType::Rock,
+                        visible: false,
+                    }
+                } else {
+                    Tile {
+                        value: TileType::Air,
+                        visible: true,
+                    }
+                };
+                let layer = &mut map.layers[z as usize];
+                layer.set_tile(x, y, tile);
+            }
         }
     }
 

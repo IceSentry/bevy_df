@@ -81,9 +81,7 @@ fn startup(
         current_z_level: Z_LEVELS,
     });
 
-    commands.insert_resource(MapGeneratorData {
-        elevation: vec![0.0; WIDTH * HEIGHT],
-    });
+    commands.insert_resource(MapGeneratorData::new(WIDTH, HEIGHT, Z_LEVELS as usize));
 }
 
 fn build_layer(
