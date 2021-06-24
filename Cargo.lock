@@ -341,7 +341,6 @@ dependencies = [
  "bevy_egui 0.5.0",
  "noise",
  "num 0.4.0",
- "simplelog",
 ]
 
 [[package]]
@@ -404,7 +403,7 @@ dependencies = [
 [[package]]
 name = "bevy_ecs_tilemap"
 version = "0.4.0"
-source = "git+https://github.com/StarArawn/bevy_ecs_tilemap.git/?branch=main#4921638d74d6141ab4e7c6945467fc4252249fc8"
+source = "git+https://github.com/StarArawn/bevy_ecs_tilemap.git/?branch=improved-iso#45ec8147454243f8d587cbad47030395eef6ee90"
 dependencies = [
  "bevy",
  "log",
@@ -939,7 +938,6 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
- "time",
  "winapi 0.3.9",
 ]
 
@@ -3290,17 +3288,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
-name = "simplelog"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59d0fe306a0ced1c88a58042dc22fc2ddd000982c26d75f6aa09a394547c41e0"
-dependencies = [
- "chrono",
- "log",
- "termcolor",
-]
-
-[[package]]
 name = "slab"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3498,15 +3485,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "termcolor"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
-dependencies = [
- "winapi-util",
-]
-
-[[package]]
 name = "thiserror"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3550,16 +3528,6 @@ dependencies = [
  "jpeg-decoder",
  "miniz_oxide 0.4.4",
  "weezl",
-]
-
-[[package]]
-name = "time"
-version = "0.1.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8a50ef2360fbd1eeb0ecd46795a87a19024eb4b53c5dc916ca1fd95fe62438"
-dependencies = [
- "libc",
- "winapi 0.3.9",
 ]
 
 [[package]]

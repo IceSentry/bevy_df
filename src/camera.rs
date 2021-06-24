@@ -10,12 +10,20 @@ pub struct CameraControlPlugin;
 
 impl Plugin for CameraControlPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(update.system()).insert_resource(CameraData {
-            scale: 3.0,
-            direction: Vec3::ZERO,
-            movement_strength: 500.,
-        });
+        app.add_startup_system(startup.system())
+            .add_system(update.system())
+            .insert_resource(CameraData {
+                scale: 3.0,
+                direction: Vec3::ZERO,
+                movement_strength: 500.,
+            });
     }
+}
+
+fn startup(mut commands: Commands) {
+    let mut camera_bundle = OrthographicCameraBundle::new_2d();
+    camera_bundle.orthographic_projection.scale = 0.5;
+    commands.spawn_bundle(camera_bundle);
 }
 
 pub fn update(

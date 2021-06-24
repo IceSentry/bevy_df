@@ -7,9 +7,8 @@ edition = "2018"
 
 [dependencies]
 bevy = "0.5.0"
-bevy_ecs_tilemap = { git="https://github.com/StarArawn/bevy_ecs_tilemap.git/", branch="main" }
+bevy_ecs_tilemap = { git="https://github.com/StarArawn/bevy_ecs_tilemap.git/", branch="improved-iso" }
 bevy_egui = "0.5.0"
 bevy-inspector-egui = "0.5.1"
 noise = "0.7.0"
-simplelog = "0.10.0"
 num = "0.4.0"

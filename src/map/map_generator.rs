@@ -6,6 +6,11 @@ use crate::utils::inverse_lerp;
 
 use super::{MapGeneratedEvent, ELEVATION_MULTIPLIER, HEIGHT, WIDTH, Z_LEVELS};
 
+// TODO
+// * try to avoid using constants to make it more dynamic
+// * elevation doesn't need to be in MapGeneratorData
+// * generate in AsyncTaskPool
+
 #[derive(Inspectable)]
 pub struct NoiseSettings {
     #[inspectable(visual, min = Vec2::splat(-2.0), max = Vec2::splat(2.0))]
@@ -38,12 +43,13 @@ pub struct Tile {
     pub value: TileType,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum TileType {
     Air,
     Water,
     Grass,
     Rock,
+    Dirt,
 }
 
 impl Default for TileType {
@@ -89,7 +95,6 @@ impl MapGeneratorData {
     }
 }
 
-// TODO try to avoid using constants to make it more dynamic
 pub fn generate_map(
     noise: Res<SuperSimplex>,
     noise_settings: Res<NoiseSettings>,
@@ -99,6 +104,7 @@ pub fn generate_map(
     if !noise_settings.is_changed() {
         return;
     }
+    info!("generating map...");
 
     let bounds = (-1.0, 1.0);
     let extent = bounds.1 - bounds.0;
@@ -148,36 +154,44 @@ pub fn generate_map(
                 }
                 let elevation = map.elevation[map_idx];
                 let z_level = z as f32 * ELEVATION_MULTIPLIER;
-                let tile = if (elevation - z_level).abs() < ELEVATION_MULTIPLIER {
+                let rounded_elevation_diff =
+                    ((elevation - z_level).abs() * Z_LEVELS as f32).round() / Z_LEVELS as f32;
+
+                let value = if rounded_elevation_diff < ELEVATION_MULTIPLIER {
                     if elevation <= 0.35 {
-                        Tile {
-                            value: TileType::Water,
-                            visible: true,
-                        }
-                    } else if elevation <= 0.75 {
-                        Tile {
-                            value: TileType::Grass,
-                            visible: true,
-                        }
+                        TileType::Water
                     } else {
-                        Tile {
-                            value: TileType::Rock,
-                            visible: true,
-                        }
+                        TileType::Grass
                     }
-                } else if elevation > z_level as f32 {
-                    Tile {
-                        value: TileType::Rock,
-                        visible: false,
+                } else if z_level < elevation as f32 {
+                    // everything under the grass is rocks
+                    if rounded_elevation_diff <= ELEVATION_MULTIPLIER * 2.0 {
+                        TileType::Dirt
+                    } else {
+                        TileType::Rock
                     }
+                } else if z_level <= 0.35 {
+                    TileType::Water
                 } else {
-                    Tile {
-                        value: TileType::Air,
-                        visible: true,
-                    }
+                    TileType::Air
+                };
+                let tile = Tile {
+                    value,
+                    visible: true,
                 };
                 let layer = &mut map.layers[z as usize];
                 layer.set_tile(x, y, tile);
+
+                if x == 0 && y == 0 {
+                    println!(
+                        "z: {:indent$} -> {:.3?} | {:.3?} | tile: {:?}",
+                        z,
+                        z_level,
+                        elevation,
+                        tile.value,
+                        indent = 2
+                    );
+                }
             }
         }
     }

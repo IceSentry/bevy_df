@@ -4,8 +4,6 @@ use bevy::{
     render::texture::FilterMode,
 };
 
-use simplelog::{self, ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
-
 mod camera;
 mod input;
 pub mod map;
@@ -16,6 +14,7 @@ pub fn set_texture_filters_to_nearest(
     mut textures: ResMut<Assets<Texture>>,
 ) {
     // quick and dirty, run this for all textures anytime a texture is created.
+    // This helps remove lines that appears when camera is far away
     for event in texture_events.iter() {
         if let AssetEvent::Created { handle } = event {
             if let Some(mut texture) = textures.get_mut(handle) {
@@ -26,13 +25,6 @@ pub fn set_texture_filters_to_nearest(
 }
 
 fn main() {
-    TermLogger::new(
-        LevelFilter::Warn,
-        Config::default(),
-        TerminalMode::Mixed,
-        ColorChoice::Always,
-    );
-
     App::build()
         .insert_resource(WindowDescriptor {
             title: String::from("bevy_df"),
