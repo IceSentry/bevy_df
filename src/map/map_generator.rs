@@ -181,17 +181,6 @@ pub fn generate_map(
                 };
                 let layer = &mut map.layers[z as usize];
                 layer.set_tile(x, y, tile);
-
-                if x == 0 && y == 0 {
-                    println!(
-                        "z: {:indent$} -> {:.3?} | {:.3?} | tile: {:?}",
-                        z,
-                        z_level,
-                        elevation,
-                        tile.value,
-                        indent = 2
-                    );
-                }
             }
         }
     }
