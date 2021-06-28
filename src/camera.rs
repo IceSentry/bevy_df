@@ -6,6 +6,10 @@ pub struct CameraData {
     pub movement_strength: f32,
 }
 
+pub struct MainCamera;
+
+pub const SCALE: f32 = 1.;
+
 pub struct CameraControlPlugin;
 
 impl Plugin for CameraControlPlugin {
@@ -22,8 +26,9 @@ impl Plugin for CameraControlPlugin {
 
 fn startup(mut commands: Commands) {
     let mut camera_bundle = OrthographicCameraBundle::new_2d();
-    camera_bundle.orthographic_projection.scale = 0.5;
-    commands.spawn_bundle(camera_bundle);
+
+    camera_bundle.orthographic_projection.scale = SCALE;
+    commands.spawn_bundle(camera_bundle).insert(MainCamera);
 }
 
 pub fn update(
