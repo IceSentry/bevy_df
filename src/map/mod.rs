@@ -27,7 +27,7 @@ pub const ELEVATION_MULTIPLIER: f32 = 1.0 / Z_LEVELS as f32;
 pub const TILE_WIDTH: usize = 32;
 pub const TILE_HEIGHT: usize = 32;
 
-pub const TEXTURE_WIDTH: usize = 160;
+pub const TEXTURE_WIDTH: usize = 32 * 6;
 pub const TEXTURE_HEIGHT: usize = 32;
 
 pub struct MapGeneratedEvent;

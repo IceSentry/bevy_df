@@ -88,11 +88,11 @@ pub fn set_map_textures(
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
 
         tile.texture_index = match tile_data.value {
-            TileType::Air => 0,
-            TileType::Water => 1,
-            TileType::Grass => 2,
-            TileType::Rock => 4,
-            TileType::Dirt => 3,
+            TileType::Air => 1,
+            TileType::Water => 2,
+            TileType::Grass => 3,
+            TileType::Dirt => 4,
+            TileType::Rock => 5,
         };
 
         chunks.insert(tile_parent.chunk);
