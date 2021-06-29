@@ -7,11 +7,16 @@ use bevy::{
     render::texture::FilterMode,
 };
 use camera::MainCamera;
-use map::map_renderer::MapRendererData;
+use map::{
+    map_generator::{MapGeneratorData, TileType},
+    map_renderer::MapRendererData,
+    Z_LEVELS,
+};
+use utils::{iso_to_world, world_to_iso};
 
 use crate::{
     camera::SCALE,
-    map::{TILE_HEIGHT, TILE_WIDTH},
+    map::{map_generator::Tile, MapGeneratedEvent, HEIGHT, TILE_HEIGHT, TILE_WIDTH, WIDTH},
 };
 
 mod camera;
@@ -34,7 +39,7 @@ pub fn set_texture_filters_to_nearest(
     }
 }
 
-fn mouse(
+fn selector(
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     windows: Res<Windows>,
     mut queries: QuerySet<(
@@ -42,6 +47,8 @@ fn mouse(
         Query<&mut Transform, With<Selector>>,
     )>,
     map_data: Res<MapRendererData>,
+    mut map_gen_data: ResMut<MapGeneratorData>,
+    mut map_gen_event: EventWriter<MapGeneratedEvent>,
 ) {
     for event in mouse_button_input_events.iter() {
         if let ElementState::Pressed = event.state {
@@ -65,26 +72,57 @@ fn mouse(
                     let pos = iso_to_world(&selected, TILE_WIDTH as f32, TILE_HEIGHT as f32 / 2.0);
                     selector.translation.x = pos.x;
                     selector.translation.y = pos.y - ((TILE_HEIGHT as f32 / 2.0) / 2.0);
-                    selector.translation.z = map_data.current_z_level as f32 + 1.;
+                    selector.translation.z = map_data.current_z_level as f32 + TILE_HEIGHT as f32;
+
+                    // find highest tile
+                    let (new_pos, z) = calculate_z(selected, &map_gen_data, &map_data);
+                    if new_pos.x <= WIDTH as f32 || new_pos.y <= HEIGHT as f32 {
+                        // TODO check if there's a tile above to make sure we aren't clicking through a tile
+                        map_gen_data.layers[z].set_tile(
+                            new_pos.x as usize,
+                            new_pos.y as usize,
+                            Tile {
+                                value: TileType::Air,
+                                visible: true,
+                            },
+                        );
+                        map_gen_event.send(MapGeneratedEvent);
+                    }
                 }
             }
         }
     }
 }
 
-/// Transforms a point in world coordinates to an isometric projection
-/// WARN only works with a single layer, doesn't take into accound any z-levels
-fn world_to_iso(pos: Vec2, tile_width: f32, tile_height: f32) -> Vec2 {
-    let x = (pos.x / tile_width) + (-pos.y / tile_height);
-    let y = (-pos.y / tile_height) - (pos.x / tile_width);
-    Vec2::new(x.floor(), y.floor())
-}
+fn calculate_z(
+    pos: Vec2,
+    map_gen_data: &ResMut<MapGeneratorData>,
+    map_data: &Res<MapRendererData>,
+) -> (Vec2, usize) {
+    let mut output = 0;
+    let mut check_pos = pos;
+    let mut output_pos = check_pos;
+    for z in 0..=map_data.current_z_level {
+        if z == Z_LEVELS {
+            break;
+        }
+        if check_pos.x >= WIDTH as f32 || check_pos.y >= HEIGHT as f32 {
+            break;
+        }
+        let tile_type = map_gen_data.layers[z as usize]
+            .get_tile(check_pos.x.floor() as usize, check_pos.y.floor() as usize)
+            .value;
+        match tile_type {
+            TileType::Air => (),
+            _ => {
+                output = z as usize;
+                output_pos = Vec2::new(check_pos.x.floor(), check_pos.y.floor())
+            }
+        }
+        check_pos += Vec2::new(1., 1.);
+    }
 
-/// Transform a point in isometric projection to world coordinates
-fn iso_to_world(pos: &Vec2, tile_width: f32, tile_height: f32) -> Vec2 {
-    let x = (pos.x - pos.y) * tile_width / 2.0;
-    let y = (pos.x + pos.y) * tile_height / 2.0;
-    Vec2::new(x, -y)
+    (output_pos, output)
 }
 
 struct Selector;
@@ -121,6 +159,6 @@ fn main() {
         .add_startup_system(selector_setup.system())
         .add_system(bevy::input::system::exit_on_esc_system.system())
         .add_system(set_texture_filters_to_nearest.system())
-        .add_system(mouse.system())
+        .add_system(selector.system())
         .run();
 }

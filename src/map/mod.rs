@@ -10,17 +10,17 @@ use self::{
     map_renderer::{set_map_textures, update_map_state, MapRendererData},
 };
 
-mod map_generator;
+pub mod map_generator;
 pub mod map_renderer;
 
 // MAP & CHUNKS
-pub const CHUNK_WIDTH: u32 = 32;
-pub const CHUNK_HEIGHT: u32 = 32;
-pub const MAP_WIDTH: u32 = 1;
-pub const MAP_HEIGHT: u32 = 1;
+pub const CHUNK_WIDTH: u32 = 64;
+pub const CHUNK_HEIGHT: u32 = 64;
+pub const MAP_WIDTH: u32 = 2;
+pub const MAP_HEIGHT: u32 = 2;
 pub const WIDTH: usize = MAP_WIDTH as usize * CHUNK_WIDTH as usize;
 pub const HEIGHT: usize = MAP_HEIGHT as usize * CHUNK_HEIGHT as usize;
-pub const Z_LEVELS: u16 = 10;
+pub const Z_LEVELS: u16 = 20;
 pub const ELEVATION_MULTIPLIER: f32 = 1.0 / Z_LEVELS as f32;
 
 // TILE
