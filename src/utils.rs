@@ -26,3 +26,21 @@ pub fn iso_to_world(pos: &Vec2, tile_width: f32, tile_height: f32) -> Vec2 {
     let y = (pos.x + pos.y) * tile_height / 2.0;
     Vec2::new(x, -y)
 }
+
+/// based on this gdc talk <https://www.youtube.com/watch?v=LWFzPP8ZbdU>
+#[allow(unused)]
+pub fn squirrel_noise(position: i32, seed: u32) -> u32 {
+    const BIT_NOISE1: u32 = 0x68E31DA4; // 1101 0001 1100 0110 0011 1011 0100 1000
+    const BIT_NOISE2: u32 = 0xB5297A4D; // 1011 0101 0010 1001 0111 1010 0100 1101
+    const BIT_NOISE3: u32 = 0x1B56C4E9; // 1101 1010 1011 0110 0010 0111 0100 1000
+
+    let mut bits = position as u32;
+    bits = bits.wrapping_mul(BIT_NOISE1);
+    bits = bits.wrapping_add(seed);
+    bits ^= bits >> 8;
+    bits = bits.wrapping_add(BIT_NOISE2);
+    bits ^= bits << 8;
+    bits = bits.wrapping_mul(BIT_NOISE3);
+    bits ^= bits >> 8;
+    bits
+}
