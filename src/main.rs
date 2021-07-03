@@ -1,17 +1,20 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::{
+    diagnostic::FrameTimeDiagnosticsPlugin,
     input::{mouse::MouseButtonInput, ElementState},
     math::Vec4Swizzles,
     prelude::*,
     render::texture::FilterMode,
 };
+use bevy_egui::EguiPlugin;
 use camera::MainCamera;
 use map::{
     map_generator::{MapGeneratorData, TileType},
     map_renderer::MapRendererData,
     Z_LEVELS,
 };
+use performance_ui::performance_ui;
 use utils::{iso_to_world, world_to_iso};
 
 use crate::{
@@ -22,6 +25,7 @@ use crate::{
 mod camera;
 mod input;
 pub mod map;
+mod performance_ui;
 mod utils;
 
 pub fn set_texture_filters_to_nearest(
@@ -148,11 +152,8 @@ fn main() {
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
-        // .add_plugin(LogDiagnosticsPlugin::filtered(vec![
-        //     FrameTimeDiagnosticsPlugin::FPS,
-        //     FrameTimeDiagnosticsPlugin::FRAME_TIME,
-        // ]))
-        // .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(EguiPlugin)
         .add_plugin(camera::CameraControlPlugin)
         .add_plugin(map::MapPlugin)
         .add_plugin(input::InputPlugin)
@@ -160,5 +161,6 @@ fn main() {
         .add_system(bevy::input::system::exit_on_esc_system.system())
         .add_system(set_texture_filters_to_nearest.system())
         .add_system(selector.system())
+        .add_system(performance_ui.system())
         .run();
 }
