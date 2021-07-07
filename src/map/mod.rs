@@ -7,7 +7,7 @@ use crate::map::map_generator::MapGeneratorData;
 
 use self::{
     map_generator::{generate_map, NoiseSettings},
-    map_renderer::{set_map_textures, update_map_state, MapRendererData},
+    map_renderer::{set_map_textures, update_layer_visibility, MapRendererData},
 };
 
 pub mod map_generator;
@@ -42,7 +42,7 @@ impl Plugin for MapPlugin {
             .add_startup_system(startup.system())
             .add_system(generate_map.system())
             .add_system(set_map_textures.system())
-            .add_system(update_map_state.system());
+            .add_system(update_layer_visibility.system());
     }
 }
 

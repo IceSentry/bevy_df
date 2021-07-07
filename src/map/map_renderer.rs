@@ -18,10 +18,11 @@ pub struct MapRendererData {
     pub current_z_level: u16,
 }
 
-pub fn update_map_state(
-    mut map_renderer_data: ResMut<MapRendererData>,
-    mut map_query: MapQuery,
+pub fn update_layer_visibility(
     mut tile_query: Query<(&mut Tile, &TileParent)>,
+    mut chunk_query: Query<&mut Chunk>,
+    mut map_renderer_data: ResMut<MapRendererData>,
+    pool: Res<ComputeTaskPool>,
 ) {
     if !map_renderer_data.is_changed() {
         return;
@@ -29,54 +30,33 @@ pub fn update_map_state(
     info!("updating layer visibility...");
     let start = Instant::now();
 
-    for layer_id in 0..Z_LEVELS {
-        if layer_id > map_renderer_data.current_z_level
-            && map_renderer_data.visible_layers[layer_id as usize]
-        {
-            set_layer_visibility(
-                &mut map_renderer_data,
-                &mut map_query,
-                &mut tile_query,
-                layer_id,
-                false,
-            );
-        } else if layer_id <= map_renderer_data.current_z_level
-            && !map_renderer_data.visible_layers[layer_id as usize]
-        {
-            set_layer_visibility(
-                &mut map_renderer_data,
-                &mut map_query,
-                &mut tile_query,
-                layer_id,
-                true,
-            );
+    tile_query.par_for_each_mut(&pool, 128, |(mut tile, tile_parent)| {
+        let z_level = tile_parent.layer_id;
+        let is_layer_visible = map_renderer_data.visible_layers[z_level as usize];
+        if z_level > map_renderer_data.current_z_level && is_layer_visible {
+            tile.visible = false;
+        } else if z_level <= map_renderer_data.current_z_level && !is_layer_visible {
+            tile.visible = true;
+        }
+    });
+
+    for mut chunk_entity in chunk_query.iter_mut() {
+        chunk_entity.needs_remesh = true;
+    }
+
+    for z_level in 0..Z_LEVELS {
+        let is_layer_visible = map_renderer_data.visible_layers[z_level as usize];
+        if z_level > map_renderer_data.current_z_level && is_layer_visible {
+            map_renderer_data.visible_layers[z_level as usize] = false;
+        } else if z_level <= map_renderer_data.current_z_level && !is_layer_visible {
+            map_renderer_data.visible_layers[z_level as usize] = true;
         }
     }
+
     info!(
         "updating layer visibility...done elapsed: {:?}",
         start.elapsed()
     );
-}
-
-fn set_layer_visibility(
-    map_renderer_data: &mut ResMut<MapRendererData>,
-    map_query: &mut MapQuery,
-    tile_query: &mut Query<&mut Tile>,
-    layer_id: u16,
-    visibility: bool,
-) {
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            let position = UVec2::new(x as u32, y as u32);
-            if let Ok(tile_entity) = map_query.get_tile_entity(position, 0u16, layer_id) {
-                if let Ok(mut tile) = tile_query.get_mut(tile_entity) {
-                    tile.visible = visibility;
-                }
-            }
-            map_query.notify_chunk_for_tile(position, 0u16, layer_id);
-    }
-    }
-    map_renderer_data.visible_layers[layer_id as usize] = visibility;
 }
 
 pub fn set_map_textures(
@@ -91,7 +71,7 @@ pub fn set_map_textures(
     }
     info!("setting map textures...");
     let start = Instant::now();
-    tile_query.par_for_each_mut(&pool, 64, |(mut tile, tile_parent, pos)| {
+    tile_query.par_for_each_mut(&pool, 128, |(mut tile, tile_parent, pos)| {
         let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
 
