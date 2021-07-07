@@ -16,19 +16,20 @@ pub mod map_renderer;
 // MAP & CHUNKS
 pub const CHUNK_WIDTH: u32 = 64;
 pub const CHUNK_HEIGHT: u32 = 64;
-pub const MAP_WIDTH: u32 = 2;
-pub const MAP_HEIGHT: u32 = 2;
+pub const MAP_WIDTH: u32 = 5;
+pub const MAP_HEIGHT: u32 = 5;
 pub const WIDTH: usize = MAP_WIDTH as usize * CHUNK_WIDTH as usize;
 pub const HEIGHT: usize = MAP_HEIGHT as usize * CHUNK_HEIGHT as usize;
 pub const Z_LEVELS: u16 = 20;
 pub const ELEVATION_MULTIPLIER: f32 = 1.0 / Z_LEVELS as f32;
+pub const TOTAL_TILE_COUNT: usize = WIDTH * HEIGHT * Z_LEVELS as usize;
+pub const TILE_BATCH_SIZE: usize = TOTAL_TILE_COUNT / 4;
 
 // TILE
 pub const TILE_WIDTH: usize = 32;
 pub const TILE_HEIGHT: usize = 32;
 
-pub const TILE_COUNT: usize = 6;
-pub const TEXTURE_WIDTH: usize = 32 * TILE_COUNT;
+pub const TEXTURE_WIDTH: usize = 32 * 6;
 pub const TEXTURE_HEIGHT: usize = 32;
 
 pub struct MapGeneratedEvent;

@@ -1,6 +1,8 @@
 use bevy::{prelude::*, tasks::ComputeTaskPool, utils::Instant};
 use bevy_ecs_tilemap::prelude::*;
 
+use crate::map::TILE_BATCH_SIZE;
+
 use super::{
     map_generator::{MapGeneratorData, TileType},
     MapGeneratedEvent, Z_LEVELS,
@@ -29,26 +31,35 @@ pub fn update_layer_visibility(
     info!("updating layer visibility...");
     let start = Instant::now();
 
-    tile_query.par_for_each_mut(&pool, 128, |(mut tile, tile_parent)| {
-        let z_level = tile_parent.layer_id;
+    fn visibility_needs_update(
+        z_level: u16,
+        map_renderer_data: &ResMut<MapRendererData>,
+    ) -> Option<bool> {
         let is_layer_visible = map_renderer_data.visible_layers[z_level as usize];
-        if z_level > map_renderer_data.current_z_level && is_layer_visible {
-            tile.visible = false;
-        } else if z_level <= map_renderer_data.current_z_level && !is_layer_visible {
-            tile.visible = true;
+        if is_layer_visible && z_level > map_renderer_data.current_z_level {
+            Some(false)
+        } else if !is_layer_visible && z_level <= map_renderer_data.current_z_level {
+            Some(true)
+        } else {
+            None
+        }
+    }
+
+    tile_query.par_for_each_mut(&pool, TILE_BATCH_SIZE, |(mut tile, tile_parent)| {
+        if let Some(visible) = visibility_needs_update(tile_parent.layer_id, &map_renderer_data) {
+            tile.visible = visible;
         }
     });
 
-    for mut chunk_entity in chunk_query.iter_mut() {
-        chunk_entity.needs_remesh = true;
+    for mut chunk in chunk_query.iter_mut() {
+        if visibility_needs_update(chunk.settings.layer_id, &map_renderer_data).is_some() {
+            chunk.needs_remesh = true;
+        }
     }
 
     for z_level in 0..Z_LEVELS {
-        let is_layer_visible = map_renderer_data.visible_layers[z_level as usize];
-        if z_level > map_renderer_data.current_z_level && is_layer_visible {
-            map_renderer_data.visible_layers[z_level as usize] = false;
-        } else if z_level <= map_renderer_data.current_z_level && !is_layer_visible {
-            map_renderer_data.visible_layers[z_level as usize] = true;
+        if let Some(visible) = visibility_needs_update(z_level, &map_renderer_data) {
+            map_renderer_data.visible_layers[z_level as usize] = visible;
         }
     }
 
@@ -71,7 +82,7 @@ pub fn set_map_textures(
     info!("setting map textures...");
     let start = Instant::now();
 
-    tile_query.par_for_each_mut(&pool, 128, |(mut tile, tile_parent, pos)| {
+    tile_query.par_for_each_mut(&pool, TILE_BATCH_SIZE, |(mut tile, tile_parent, pos)| {
         let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
 
