@@ -1,10 +1,9 @@
 use bevy::{prelude::*, tasks::ComputeTaskPool, utils::Instant};
 use bevy_ecs_tilemap::prelude::*;
-use std::collections::HashSet;
 
 use super::{
     map_generator::{MapGeneratorData, TileType},
-    MapGeneratedEvent, HEIGHT, WIDTH, Z_LEVELS,
+    MapGeneratedEvent, Z_LEVELS,
 };
 
 // TODO
@@ -71,6 +70,7 @@ pub fn set_map_textures(
     }
     info!("setting map textures...");
     let start = Instant::now();
+
     tile_query.par_for_each_mut(&pool, 128, |(mut tile, tile_parent, pos)| {
         let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
