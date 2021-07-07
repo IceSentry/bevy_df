@@ -74,7 +74,8 @@ fn set_layer_visibility(
 
 pub fn set_map_textures(
     mut tile_query: Query<(&mut Tile, &TileParent, &UVec2)>,
-    mut map_query: MapQuery,
+    mut chunk_query: Query<&mut Chunk>,
+    pool: Res<ComputeTaskPool>,
     map_generator_data: Res<MapGeneratorData>,
     mut events: EventReader<MapGeneratedEvent>,
 ) {
@@ -83,7 +84,7 @@ pub fn set_map_textures(
     }
     info!("setting map textures...");
     let mut chunks = HashSet::new();
-    for (mut tile, tile_parent, pos) in tile_query.iter_mut() {
+    tile_query.par_for_each_mut(&pool, 64, |(mut tile, tile_parent, pos)| {
         let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
 
@@ -94,11 +95,11 @@ pub fn set_map_textures(
             TileType::Dirt => 4,
             TileType::Rock => 5,
         };
-
+    });
         chunks.insert(tile_parent.chunk);
     }
 
-    for chunk_entity in chunks.drain() {
-        map_query.notify_chunk(chunk_entity);
+    for mut chunk_entity in chunk_query.iter_mut() {
+        chunk_entity.needs_remesh = true;
     }
 }
