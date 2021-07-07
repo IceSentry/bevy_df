@@ -1,12 +1,7 @@
 use bevy::{prelude::*, tasks::ComputeTaskPool, utils::Instant};
 use bevy_ecs_tilemap::prelude::*;
 
-use crate::map::TILE_BATCH_SIZE;
-
-use super::{
-    map_generator::{MapGeneratorData, TileType},
-    MapGeneratedEvent, Z_LEVELS,
-};
+use super::{MapData, MapGeneratedEvent, TileType, TILE_BATCH_SIZE, Z_LEVELS};
 
 // TODO
 // * add darker shade to hidden tiles
@@ -14,31 +9,23 @@ use super::{
 //      let neighbors = map_query.get_tile_neighbors(*pos, 0u16, tile_parent.layer_id);
 // * merge MapRendererData and MapGeneratorData??
 
-pub struct MapRendererData {
-    pub visible_layers: Vec<bool>,
-    pub current_z_level: u16,
-}
-
 pub fn update_layer_visibility(
     mut tile_query: Query<(&mut Tile, &TileParent)>,
     mut chunk_query: Query<&mut Chunk>,
-    mut map_renderer_data: ResMut<MapRendererData>,
+    mut map_data: ResMut<MapData>,
     pool: Res<ComputeTaskPool>,
 ) {
-    if !map_renderer_data.is_changed() {
+    if !map_data.is_changed() {
         return;
     }
     info!("updating layer visibility...");
     let start = Instant::now();
 
-    fn visibility_needs_update(
-        z_level: u16,
-        map_renderer_data: &ResMut<MapRendererData>,
-    ) -> Option<bool> {
-        let is_layer_visible = map_renderer_data.visible_layers[z_level as usize];
-        if is_layer_visible && z_level > map_renderer_data.current_z_level {
+    fn visibility_needs_update(z_level: u16, map_data: &ResMut<MapData>) -> Option<bool> {
+        let is_layer_visible = map_data.visible_layers[z_level as usize];
+        if is_layer_visible && z_level > map_data.current_z_level {
             Some(false)
-        } else if !is_layer_visible && z_level <= map_renderer_data.current_z_level {
+        } else if !is_layer_visible && z_level <= map_data.current_z_level {
             Some(true)
         } else {
             None
@@ -46,20 +33,20 @@ pub fn update_layer_visibility(
     }
 
     tile_query.par_for_each_mut(&pool, TILE_BATCH_SIZE, |(mut tile, tile_parent)| {
-        if let Some(visible) = visibility_needs_update(tile_parent.layer_id, &map_renderer_data) {
+        if let Some(visible) = visibility_needs_update(tile_parent.layer_id, &map_data) {
             tile.visible = visible;
         }
     });
 
     for mut chunk in chunk_query.iter_mut() {
-        if visibility_needs_update(chunk.settings.layer_id, &map_renderer_data).is_some() {
+        if visibility_needs_update(chunk.settings.layer_id, &map_data).is_some() {
             chunk.needs_remesh = true;
         }
     }
 
     for z_level in 0..Z_LEVELS {
-        if let Some(visible) = visibility_needs_update(z_level, &map_renderer_data) {
-            map_renderer_data.visible_layers[z_level as usize] = visible;
+        if let Some(visible) = visibility_needs_update(z_level, &map_data) {
+            map_data.visible_layers[z_level as usize] = visible;
         }
     }
 
@@ -73,7 +60,7 @@ pub fn set_map_textures(
     mut tile_query: Query<(&mut Tile, &TileParent, &UVec2)>,
     mut chunk_query: Query<&mut Chunk>,
     pool: Res<ComputeTaskPool>,
-    map_generator_data: Res<MapGeneratorData>,
+    map_generator_data: Res<MapData>,
     mut events: EventReader<MapGeneratedEvent>,
 ) {
     if events.iter().count() == 0 {

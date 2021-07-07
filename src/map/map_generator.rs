@@ -4,7 +4,9 @@ use noise::{NoiseFn, SuperSimplex};
 
 use crate::utils::inverse_lerp;
 
-use super::{MapGeneratedEvent, ELEVATION_MULTIPLIER, HEIGHT, WIDTH, Z_LEVELS};
+use super::{
+    MapData, MapGeneratedEvent, Tile, TileType, ELEVATION_MULTIPLIER, HEIGHT, WIDTH, Z_LEVELS,
+};
 
 // TODO
 // * try to avoid using constants to make it more dynamic
@@ -37,68 +39,10 @@ impl Default for NoiseSettings {
     }
 }
 
-#[derive(Copy, Clone, Default)]
-pub struct Tile {
-    pub visible: bool,
-    pub value: TileType,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum TileType {
-    Air,
-    Water,
-    Grass,
-    Rock,
-    Dirt,
-}
-
-impl Default for TileType {
-    fn default() -> Self {
-        TileType::Air
-    }
-}
-
-#[derive(Clone)]
-pub struct Layer {
-    data: Vec<Tile>,
-}
-
-impl Layer {
-    pub fn new(width: usize, height: usize) -> Self {
-        Self {
-            data: vec![Tile::default(); width * height],
-        }
-    }
-}
-
-impl Layer {
-    pub fn get_tile(&self, x: usize, y: usize) -> &Tile {
-        &self.data[y * WIDTH + x]
-    }
-
-    pub fn set_tile(&mut self, x: usize, y: usize, new_tile: Tile) {
-        self.data[y * WIDTH + x] = new_tile;
-    }
-}
-
-pub struct MapGeneratorData {
-    pub elevation: Vec<f32>,
-    pub layers: Vec<Layer>,
-}
-
-impl MapGeneratorData {
-    pub fn new(width: usize, height: usize, z_levels: usize) -> Self {
-        Self {
-            elevation: vec![0.0; width * height],
-            layers: vec![Layer::new(width, height); z_levels],
-        }
-    }
-}
-
 pub fn generate_map(
     noise: Res<SuperSimplex>,
     noise_settings: Res<NoiseSettings>,
-    mut map: ResMut<MapGeneratorData>,
+    mut map: ResMut<MapData>,
     mut event: EventWriter<MapGeneratedEvent>,
 ) {
     if !noise_settings.is_changed() {
@@ -113,6 +57,8 @@ pub fn generate_map(
 
     let mut min = std::f32::MAX;
     let mut max = std::f32::MIN;
+
+    let mut elevation_map = vec![0.0; WIDTH * HEIGHT];
 
     for y in 0..HEIGHT {
         let current_y = bounds.0 + step * y as f64;
@@ -141,7 +87,7 @@ pub fn generate_map(
                 min = elevation;
             }
 
-            map.elevation[y * WIDTH + x] = elevation;
+            elevation_map[y * WIDTH + x] = elevation;
         }
     }
 
@@ -151,9 +97,9 @@ pub fn generate_map(
                 let map_idx = y * WIDTH + x;
                 if z == 0 {
                     // we only need to normalize this once
-                    map.elevation[map_idx] = inverse_lerp(min, max, map.elevation[map_idx]);
+                    elevation_map[map_idx] = inverse_lerp(min, max, elevation_map[map_idx]);
                 }
-                let elevation = map.elevation[map_idx];
+                let elevation = elevation_map[map_idx];
                 let z_level = z as f32 * ELEVATION_MULTIPLIER;
                 let rounded_elevation_diff =
                     ((elevation - z_level).abs() * Z_LEVELS as f32).round() / Z_LEVELS as f32;

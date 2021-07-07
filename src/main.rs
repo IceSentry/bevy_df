@@ -9,17 +9,13 @@ use bevy::{
 };
 use bevy_egui::EguiPlugin;
 use camera::MainCamera;
-use map::{
-    map_generator::{MapGeneratorData, TileType},
-    map_renderer::MapRendererData,
-    Z_LEVELS,
-};
+use map::{MapData, Tile, TileType, Z_LEVELS};
 use performance_ui::performance_ui;
 use utils::{iso_to_world, world_to_iso};
 
 use crate::{
     camera::SCALE,
-    map::{map_generator::Tile, MapGeneratedEvent, HEIGHT, TILE_HEIGHT, TILE_WIDTH, WIDTH},
+    map::{MapGeneratedEvent, HEIGHT, TILE_HEIGHT, TILE_WIDTH, WIDTH},
 };
 
 mod camera;
@@ -50,8 +46,7 @@ fn selector(
         Query<&Transform, With<MainCamera>>,
         Query<&mut Transform, With<Selector>>,
     )>,
-    map_data: Res<MapRendererData>,
-    mut map_gen_data: ResMut<MapGeneratorData>,
+    mut map_data: ResMut<MapData>,
     mut map_gen_event: EventWriter<MapGeneratedEvent>,
 ) {
     for event in mouse_button_input_events.iter() {
@@ -79,10 +74,10 @@ fn selector(
                     selector.translation.z = map_data.current_z_level as f32 + TILE_HEIGHT as f32;
 
                     // find highest tile
-                    let (new_pos, z) = calculate_z(selected, &map_gen_data, &map_data);
+                    let (new_pos, z) = calculate_z(selected, &map_data);
                     if new_pos.x <= WIDTH as f32 || new_pos.y <= HEIGHT as f32 {
                         // TODO check if there's a tile above to make sure we aren't clicking through a tile
-                        map_gen_data.layers[z].set_tile(
+                        map_data.layers[z].set_tile(
                             new_pos.x as usize,
                             new_pos.y as usize,
                             Tile {
@@ -98,11 +93,7 @@ fn selector(
     }
 }
 
-fn calculate_z(
-    pos: Vec2,
-    map_gen_data: &ResMut<MapGeneratorData>,
-    map_data: &Res<MapRendererData>,
-) -> (Vec2, usize) {
+fn calculate_z(pos: Vec2, map_data: &ResMut<MapData>) -> (Vec2, usize) {
     let mut output = 0;
     let mut check_pos = pos;
     let mut output_pos = check_pos;
@@ -113,7 +104,7 @@ fn calculate_z(
         if check_pos.x >= WIDTH as f32 || check_pos.y >= HEIGHT as f32 {
             break;
         }
-        let tile_type = map_gen_data.layers[z as usize]
+        let tile_type = map_data.layers[z as usize]
             .get_tile(check_pos.x.floor() as usize, check_pos.y.floor() as usize)
             .value;
         match tile_type {
@@ -157,9 +148,9 @@ fn main() {
         .add_plugin(camera::CameraControlPlugin)
         .add_plugin(map::MapPlugin)
         .add_plugin(input::InputPlugin)
-        .add_startup_system(selector_setup.system())
         .add_system(bevy::input::system::exit_on_esc_system.system())
         .add_system(set_texture_filters_to_nearest.system())
+        .add_startup_system(selector_setup.system())
         .add_system(selector.system())
         .add_system(performance_ui.system())
         .run();

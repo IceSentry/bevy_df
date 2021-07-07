@@ -3,11 +3,9 @@ use bevy_ecs_tilemap::prelude::*;
 use bevy_inspector_egui::InspectorPlugin;
 use noise::{Seedable, SuperSimplex};
 
-use crate::map::map_generator::MapGeneratorData;
-
 use self::{
     map_generator::{generate_map, NoiseSettings},
-    map_renderer::{set_map_textures, update_layer_visibility, MapRendererData},
+    map_renderer::{set_map_textures, update_layer_visibility},
 };
 
 pub mod map_generator;
@@ -33,6 +31,66 @@ pub const TEXTURE_WIDTH: usize = 32 * 6;
 pub const TEXTURE_HEIGHT: usize = 32;
 
 pub struct MapGeneratedEvent;
+
+#[derive(Copy, Clone, Default)]
+pub struct Tile {
+    pub visible: bool,
+    pub value: TileType,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum TileType {
+    Air,
+    Water,
+    Grass,
+    Rock,
+    Dirt,
+}
+
+impl Default for TileType {
+    fn default() -> Self {
+        TileType::Air
+    }
+}
+
+#[derive(Clone)]
+pub struct Layer {
+    data: Vec<Tile>,
+}
+
+impl Layer {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
+            data: vec![Tile::default(); width * height],
+        }
+    }
+}
+
+impl Layer {
+    pub fn get_tile(&self, x: usize, y: usize) -> &Tile {
+        &self.data[y * WIDTH + x]
+    }
+
+    pub fn set_tile(&mut self, x: usize, y: usize, new_tile: Tile) {
+        self.data[y * WIDTH + x] = new_tile;
+    }
+}
+
+pub struct MapData {
+    pub layers: Vec<Layer>,
+    pub visible_layers: Vec<bool>,
+    pub current_z_level: u16,
+}
+
+impl MapData {
+    pub fn new(width: usize, height: usize, z_levels: usize) -> Self {
+        Self {
+            layers: vec![Layer::new(width, height); z_levels],
+            visible_layers: vec![true; Z_LEVELS as usize],
+            current_z_level: Z_LEVELS,
+        }
+    }
+}
 
 pub struct MapPlugin;
 
@@ -99,10 +157,9 @@ fn startup(
     let noise_fn = SuperSimplex::new().set_seed(42);
     commands.insert_resource(noise_fn);
 
-    commands.insert_resource(MapRendererData {
+    commands.insert_resource(MapData {
+        layers: vec![Layer::new(WIDTH, HEIGHT); Z_LEVELS as usize],
         visible_layers: vec![true; Z_LEVELS as usize],
         current_z_level: Z_LEVELS,
-    });
-
-    commands.insert_resource(MapGeneratorData::new(WIDTH, HEIGHT, Z_LEVELS as usize));
+    })
 }

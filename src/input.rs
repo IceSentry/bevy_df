@@ -37,12 +37,12 @@ pub fn mouse_wheel(
     keyboard_input: Res<Input<KeyCode>>,
     mut mouse_wheel_events: EventReader<MouseWheel>,
     mut camera: ResMut<CameraData>,
-    mut map_state: ResMut<crate::map::map_renderer::MapRendererData>,
+    mut map_data: ResMut<crate::map::MapData>,
 ) {
     for event in mouse_wheel_events.iter() {
         if keyboard_input.pressed(KeyCode::LControl) {
-            let new_z_level = (map_state.current_z_level as i32 - event.y as i32).clamp(0, 20);
-            map_state.current_z_level = new_z_level as u16;
+            let new_z_level = (map_data.current_z_level as i32 - event.y as i32).clamp(0, 20);
+            map_data.current_z_level = new_z_level as u16;
         } else {
             camera.scale -= event.y;
             if camera.scale < 1.0 {
