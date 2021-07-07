@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, tasks::ComputeTaskPool, utils::Instant};
 use bevy_ecs_tilemap::prelude::*;
 use std::collections::HashSet;
 
@@ -21,11 +21,14 @@ pub struct MapRendererData {
 pub fn update_map_state(
     mut map_renderer_data: ResMut<MapRendererData>,
     mut map_query: MapQuery,
-    mut tile_query: Query<&mut Tile>,
+    mut tile_query: Query<(&mut Tile, &TileParent)>,
 ) {
     if !map_renderer_data.is_changed() {
         return;
     }
+    info!("updating layer visibility...");
+    let start = Instant::now();
+
     for layer_id in 0..Z_LEVELS {
         if layer_id > map_renderer_data.current_z_level
             && map_renderer_data.visible_layers[layer_id as usize]
@@ -49,6 +52,10 @@ pub fn update_map_state(
             );
         }
     }
+    info!(
+        "updating layer visibility...done elapsed: {:?}",
+        start.elapsed()
+    );
 }
 
 fn set_layer_visibility(
@@ -67,7 +74,7 @@ fn set_layer_visibility(
                 }
             }
             map_query.notify_chunk_for_tile(position, 0u16, layer_id);
-        }
+    }
     }
     map_renderer_data.visible_layers[layer_id as usize] = visibility;
 }
@@ -83,7 +90,7 @@ pub fn set_map_textures(
         return;
     }
     info!("setting map textures...");
-    let mut chunks = HashSet::new();
+    let start = Instant::now();
     tile_query.par_for_each_mut(&pool, 64, |(mut tile, tile_parent, pos)| {
         let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
@@ -96,10 +103,9 @@ pub fn set_map_textures(
             TileType::Rock => 5,
         };
     });
-        chunks.insert(tile_parent.chunk);
-    }
 
     for mut chunk_entity in chunk_query.iter_mut() {
         chunk_entity.needs_remesh = true;
     }
+    info!("setting map textures...done elapsed: {:?}", start.elapsed());
 }

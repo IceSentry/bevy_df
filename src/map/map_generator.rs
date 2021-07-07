@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::Instant};
 use bevy_inspector_egui::Inspectable;
 use noise::{NoiseFn, SuperSimplex};
 
@@ -105,6 +105,7 @@ pub fn generate_map(
         return;
     }
     info!("generating map...");
+    let start = Instant::now();
 
     let bounds = (-1.0, 1.0);
     let extent = bounds.1 - bounds.0;
@@ -184,6 +185,6 @@ pub fn generate_map(
             }
         }
     }
-
+    info!("generating map...done elapsed: {:?}", start.elapsed());
     event.send(MapGeneratedEvent);
 }
