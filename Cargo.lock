@@ -335,6 +335,7 @@ dependencies = [
 name = "bevy_df"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bevy",
  "bevy-inspector-egui",
  "bevy_ecs_tilemap",

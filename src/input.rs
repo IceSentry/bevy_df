@@ -1,4 +1,7 @@
-use crate::camera::CameraData;
+use crate::{
+    camera::CameraData,
+    map::{CurrentZLevel, Z_LEVELS},
+};
 use bevy::{input::mouse::MouseWheel, prelude::*};
 
 const CAMERA_SPEED: f32 = 500.;
@@ -37,12 +40,12 @@ pub fn mouse_wheel(
     keyboard_input: Res<Input<KeyCode>>,
     mut mouse_wheel_events: EventReader<MouseWheel>,
     mut camera: ResMut<CameraData>,
-    mut map_data: ResMut<crate::map::MapData>,
+    mut current_z_level: ResMut<CurrentZLevel>,
 ) {
     for event in mouse_wheel_events.iter() {
         if keyboard_input.pressed(KeyCode::LControl) {
-            let new_z_level = (map_data.current_z_level as i32 - event.y as i32).clamp(0, 20);
-            map_data.current_z_level = new_z_level as u16;
+            let new_z_level = (current_z_level.0 as i32 - event.y as i32).clamp(0, Z_LEVELS as i32);
+            current_z_level.0 = new_z_level as u16;
         } else {
             camera.scale -= event.y;
             if camera.scale < 1.0 {

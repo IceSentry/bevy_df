@@ -88,7 +88,9 @@ pub fn generate_map(
                     visible: true,
                 };
                 let layer = &mut map.layers[z as usize];
-                layer.set_tile(x, y, tile);
+                layer
+                    .set_tile(x, y, tile)
+                    .expect("generated tile out of bounds");
             }
         }
     }
@@ -99,8 +101,8 @@ pub fn generate_map(
 fn generate_elevation_map(
     width: usize,
     height: usize,
-    noise_settings: &Res<NoiseSettings>,
-    noise: &Res<SuperSimplex>,
+    noise_settings: &NoiseSettings,
+    noise: &SuperSimplex,
 ) -> (Vec<f32>, f32, f32) {
     let bounds = (-1.0, 1.0);
     let extent = bounds.1 - bounds.0;

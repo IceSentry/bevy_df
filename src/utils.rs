@@ -1,6 +1,5 @@
+use bevy::{math::Vec2, prelude::*, window::Window};
 use std::ops::Sub;
-
-use bevy::math::Vec2;
 
 #[allow(unused)]
 pub fn lerp<T: num::Float + Sub>(a: T, b: T, v: T) -> T {
@@ -20,11 +19,27 @@ pub fn world_to_iso(pos: Vec2, tile_width: f32, tile_height: f32) -> Vec2 {
     Vec2::new(x.floor(), y.floor())
 }
 
-/// Transform a point in isometric projection to world coordinates
+/// Transforms a point in isometric projection to world coordinates
 pub fn iso_to_world(pos: &Vec2, tile_width: f32, tile_height: f32) -> Vec2 {
     let x = (pos.x - pos.y) * tile_width / 2.0;
     let y = (pos.x + pos.y) * tile_height / 2.0;
     Vec2::new(x, -y)
+}
+
+pub fn cursor_to_world(window: &Window, camera_transform: &Transform, scale: f32) -> Option<Vec4> {
+    if let Some(cursor_position) = window.cursor_position() {
+        let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+
+        // the default orthographic projection is in pixels from the center;
+        // just undo the translation
+        let cursor_position = cursor_position - window_size / 2.0;
+
+        let pos_world =
+            camera_transform.compute_matrix() * cursor_position.extend(0.0).extend(1.0) * scale; // The scale doesn't work properly if you move the camera
+        Some(pos_world)
+    } else {
+        None
+    }
 }
 
 /// based on this gdc talk <https://www.youtube.com/watch?v=LWFzPP8ZbdU>

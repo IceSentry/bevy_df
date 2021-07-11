@@ -1,15 +1,16 @@
+use anyhow::{bail, Result};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_inspector_egui::InspectorPlugin;
 use noise::{Seedable, SuperSimplex};
 
 use self::{
-    map_generator::{generate_map, NoiseSettings},
-    map_renderer::{set_map_textures, update_layer_visibility},
+    generator::{generate_map, NoiseSettings},
+    renderer::{set_map_textures, update_layer_visibility, update_tiles},
 };
 
-pub mod map_generator;
-pub mod map_renderer;
+pub mod generator;
+pub mod renderer;
 
 // MAP & CHUNKS
 pub const CHUNK_WIDTH: u32 = 64;
@@ -21,7 +22,7 @@ pub const HEIGHT: usize = MAP_HEIGHT as usize * CHUNK_HEIGHT as usize;
 pub const Z_LEVELS: u16 = 20;
 pub const ELEVATION_MULTIPLIER: f32 = 1.0 / Z_LEVELS as f32;
 pub const TOTAL_TILE_COUNT: usize = WIDTH * HEIGHT * Z_LEVELS as usize;
-pub const TILE_BATCH_SIZE: usize = TOTAL_TILE_COUNT / 4;
+pub const TILE_BATCH_SIZE: usize = TOTAL_TILE_COUNT / 6;
 
 // TILE
 pub const TILE_WIDTH: usize = 32;
@@ -31,6 +32,12 @@ pub const TEXTURE_WIDTH: usize = 32 * 6;
 pub const TEXTURE_HEIGHT: usize = 32;
 
 pub struct MapGeneratedEvent;
+
+pub struct CurrentZLevel(pub u16);
+
+// TODO consider using a queue
+// Maybe tag existing tiles instead and query tiles with the tag
+pub struct TilesToUpdate(pub Vec<(UVec3, Tile)>);
 
 #[derive(Copy, Clone, Default)]
 pub struct Tile {
@@ -67,27 +74,51 @@ impl Layer {
 }
 
 impl Layer {
-    pub fn get_tile(&self, x: usize, y: usize) -> &Tile {
-        &self.data[y * WIDTH + x]
+    pub fn get_tile(&self, x: usize, y: usize) -> Option<&Tile> {
+        self.data.get(y * WIDTH + x)
     }
 
-    pub fn set_tile(&mut self, x: usize, y: usize, new_tile: Tile) {
-        self.data[y * WIDTH + x] = new_tile;
+    pub fn set_tile(&mut self, x: usize, y: usize, new_tile: Tile) -> Result<()> {
+        if let Some(elem) = self.data.get_mut(y * WIDTH + x) {
+            *elem = new_tile;
+            Ok(())
+        } else {
+            bail!("tile out of bounds")
+        }
     }
 }
 
 pub struct MapData {
     pub layers: Vec<Layer>,
-    pub visible_layers: Vec<bool>,
-    pub current_z_level: u16,
+}
+
+pub struct VisibleLayers(Vec<bool>);
+
+impl VisibleLayers {
+    pub fn new(z_levels: usize) -> Self {
+        Self(vec![true; z_levels])
+    }
 }
 
 impl MapData {
     pub fn new(width: usize, height: usize, z_levels: usize) -> Self {
         Self {
             layers: vec![Layer::new(width, height); z_levels],
-            visible_layers: vec![true; Z_LEVELS as usize],
-            current_z_level: Z_LEVELS,
+        }
+    }
+
+    pub fn get_tile(&self, pos: UVec3) -> Option<&Tile> {
+        self.layers
+            .get(pos.z as usize)
+            .and_then(|l| l.get_tile(pos.x as usize, pos.y as usize))
+    }
+
+    pub fn set_tile(&mut self, pos: UVec3, new_tile: Tile) -> Result<()> {
+        if let Some(l) = self.layers.get_mut(pos.z as usize) {
+            l.set_tile(pos.x as usize, pos.y as usize, new_tile)?;
+            Ok(())
+        } else {
+            bail!("tile out of bounds")
         }
     }
 }
@@ -102,7 +133,8 @@ impl Plugin for MapPlugin {
             .add_startup_system(startup.system())
             .add_system(generate_map.system())
             .add_system(set_map_textures.system())
-            .add_system(update_layer_visibility.system());
+            .add_system(update_layer_visibility.system())
+            .add_system(update_tiles.system());
     }
 }
 
@@ -159,7 +191,11 @@ fn startup(
 
     commands.insert_resource(MapData {
         layers: vec![Layer::new(WIDTH, HEIGHT); Z_LEVELS as usize],
-        visible_layers: vec![true; Z_LEVELS as usize],
-        current_z_level: Z_LEVELS,
-    })
+    });
+
+    commands.insert_resource(VisibleLayers::new(Z_LEVELS as usize));
+
+    commands.insert_resource(CurrentZLevel(Z_LEVELS));
+
+    commands.insert_resource(TilesToUpdate(vec![]));
 }
