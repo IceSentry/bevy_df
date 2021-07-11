@@ -60,7 +60,7 @@ pub fn set_map_textures(
     mut tile_query: Query<(&mut Tile, &TileParent, &UVec2)>,
     mut chunk_query: Query<&mut Chunk>,
     pool: Res<ComputeTaskPool>,
-    map_generator_data: Res<MapData>,
+    map_data: Res<MapData>,
     mut events: EventReader<MapGeneratedEvent>,
 ) {
     if events.iter().count() == 0 {
@@ -70,7 +70,7 @@ pub fn set_map_textures(
     let start = Instant::now();
 
     tile_query.par_for_each_mut(&pool, TILE_BATCH_SIZE, |(mut tile, tile_parent, pos)| {
-        let layer = &map_generator_data.layers[tile_parent.layer_id as usize];
+        let layer = &map_data.layers[tile_parent.layer_id as usize];
         let tile_data = layer.get_tile(pos.x as usize, pos.y as usize);
 
         tile.texture_index = match tile_data.value {
@@ -82,8 +82,8 @@ pub fn set_map_textures(
         };
     });
 
-    for mut chunk_entity in chunk_query.iter_mut() {
-        chunk_entity.needs_remesh = true;
+    for mut chunk in chunk_query.iter_mut() {
+        chunk.needs_remesh = true;
     }
     info!("setting map textures...done elapsed: {:?}", start.elapsed());
 }

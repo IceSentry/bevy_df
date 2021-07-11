@@ -10,7 +10,6 @@ use super::{
 
 // TODO
 // * try to avoid using constants to make it more dynamic
-// * elevation doesn't need to be in MapGeneratorData
 // * generate in AsyncTaskPool
 
 #[derive(Inspectable)]
@@ -50,46 +49,8 @@ pub fn generate_map(
     }
     info!("generating map...");
     let start = Instant::now();
-
-    let bounds = (-1.0, 1.0);
-    let extent = bounds.1 - bounds.0;
-    let step = extent as f64 / WIDTH as f64;
-
-    let mut min = std::f32::MAX;
-    let mut max = std::f32::MIN;
-
-    let mut elevation_map = vec![0.0; WIDTH * HEIGHT];
-
-    for y in 0..HEIGHT {
-        let current_y = bounds.0 + step * y as f64;
-        for x in 0..WIDTH {
-            let current_x = bounds.0 + step * x as f64;
-
-            let mut amplitude = 1.;
-            let mut frequency = 1.;
-            let mut elevation = 0.0;
-
-            for _ in 0..noise_settings.octaves {
-                let mut sample_point = Vec2::new(current_x as f32, current_y as f32);
-                sample_point = sample_point / noise_settings.scale * frequency;
-                sample_point += noise_settings.offset;
-
-                let noise_value = noise.get([sample_point.x as f64, sample_point.y as f64, 0.0]);
-
-                elevation += noise_value as f32 * amplitude;
-
-                amplitude *= noise_settings.persistence;
-                frequency *= noise_settings.lacunarity;
-            }
-            if elevation > max {
-                max = elevation;
-            } else if elevation < min {
-                min = elevation;
-            }
-
-            elevation_map[y * WIDTH + x] = elevation;
-        }
-    }
+    let (mut elevation_map, min, max) =
+        generate_elevation_map(WIDTH, HEIGHT, &noise_settings, &noise);
 
     for z in 0..Z_LEVELS {
         for y in 0..HEIGHT {
@@ -133,4 +94,53 @@ pub fn generate_map(
     }
     info!("generating map...done elapsed: {:?}", start.elapsed());
     event.send(MapGeneratedEvent);
+}
+
+fn generate_elevation_map(
+    width: usize,
+    height: usize,
+    noise_settings: &Res<NoiseSettings>,
+    noise: &Res<SuperSimplex>,
+) -> (Vec<f32>, f32, f32) {
+    let bounds = (-1.0, 1.0);
+    let extent = bounds.1 - bounds.0;
+    let step = extent as f64 / width as f64;
+
+    let mut min = std::f32::MAX;
+    let mut max = std::f32::MIN;
+
+    let mut elevation_map = vec![0.0; width * height];
+
+    for y in 0..height {
+        let current_y = bounds.0 + step * y as f64;
+        for x in 0..width {
+            let current_x = bounds.0 + step * x as f64;
+
+            let mut amplitude = 1.;
+            let mut frequency = 1.;
+            let mut elevation = 0.0;
+
+            for _ in 0..noise_settings.octaves {
+                let mut sample_point = Vec2::new(current_x as f32, current_y as f32);
+                sample_point = sample_point / noise_settings.scale * frequency;
+                sample_point += noise_settings.offset;
+
+                let noise_value = noise.get([sample_point.x as f64, sample_point.y as f64, 0.0]);
+
+                elevation += noise_value as f32 * amplitude;
+
+                amplitude *= noise_settings.persistence;
+                frequency *= noise_settings.lacunarity;
+            }
+            if elevation > max {
+                max = elevation;
+            } else if elevation < min {
+                min = elevation;
+            }
+
+            elevation_map[y * WIDTH + x] = elevation;
+        }
+    }
+
+    (elevation_map, min, max)
 }
