@@ -7,6 +7,7 @@ use bevy::{
     prelude::*,
     render::texture::FilterMode,
 };
+use bevy_ecs_tilemap::MapQuery;
 use bevy_egui::EguiPlugin;
 use camera::MainCamera;
 use map::{MapData, Tile, TileType, Z_LEVELS};
@@ -42,12 +43,13 @@ pub fn set_texture_filters_to_nearest(
 fn selector(
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     windows: Res<Windows>,
+    mut map_data: ResMut<MapData>,
+    mut map_query: MapQuery,
+    mut tile_query: Query<&mut bevy_ecs_tilemap::Tile>,
     mut queries: QuerySet<(
         Query<&Transform, With<MainCamera>>,
         Query<&mut Transform, With<Selector>>,
     )>,
-    mut map_data: ResMut<MapData>,
-    mut map_gen_event: EventWriter<MapGeneratedEvent>,
 ) {
     for event in mouse_button_input_events.iter() {
         if let ElementState::Pressed = event.state {
@@ -85,7 +87,14 @@ fn selector(
                                 visible: true,
                             },
                         );
-                        map_gen_event.send(MapGeneratedEvent);
+                        let tile_entity = map_query
+                            .get_tile_entity(new_pos.as_u32(), 0u16, z as u16)
+                            .expect("no tile found at location");
+                        if let Ok(mut tile) = tile_query.get_mut(tile_entity) {
+                            // TODO use from or something to convert TileType
+                            tile.texture_index = 1; // Air
+                        }
+                        map_query.notify_chunk_for_tile(new_pos.as_u32(), 0u16, z as u16);
                     }
                 }
             }
