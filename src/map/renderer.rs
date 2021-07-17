@@ -14,8 +14,7 @@ use super::{
 // * merge MapRendererData and MapGeneratorData??
 
 pub fn update_layer_visibility(
-    mut tile_query: Query<(&mut Tile, &TileParent)>,
-    mut chunk_query: Query<&mut Chunk>,
+    mut chunk_query: Query<(&Chunk, &mut Visible)>,
     mut visible_layers: ResMut<VisibleLayers>,
     current_z_level: Res<CurrentZLevel>,
     pool: Res<ComputeTaskPool>,
@@ -42,21 +41,16 @@ pub fn update_layer_visibility(
         }
     }
 
-    tile_query.par_for_each_mut(&pool, TILE_BATCH_SIZE, |(mut tile, tile_parent)| {
-        if let Some(visible) =
-            visibility_needs_update(tile_parent.layer_id, &visible_layers, &current_z_level)
+    chunk_query.par_for_each_mut(&pool, 32, |(chunk, mut visible)| {
+        if let Some(visibility) =
+            visibility_needs_update(chunk.settings.layer_id, &visible_layers, &current_z_level)
         {
-            tile.visible = visible;
+            *visible = Visible {
+                is_visible: visibility,
+                ..Default::default()
+            };
         }
     });
-
-    for mut chunk in chunk_query.iter_mut() {
-        if visibility_needs_update(chunk.settings.layer_id, &visible_layers, &current_z_level)
-            .is_some()
-        {
-            chunk.needs_remesh = true;
-        }
-    }
 
     for z_level in 0..Z_LEVELS {
         if let Some(visible) = visibility_needs_update(z_level, &visible_layers, &current_z_level) {

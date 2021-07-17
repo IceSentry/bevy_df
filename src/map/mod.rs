@@ -145,7 +145,7 @@ fn startup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let texture_handle = asset_server.load("iso_tiles.png");
-    let tile_handle = materials.add(ColorMaterial::texture(texture_handle));
+    let material_handle = materials.add(ColorMaterial::texture(texture_handle));
 
     let map_entity = commands.spawn().id();
     let mut map = Map::new(0u16, map_entity);
@@ -166,7 +166,7 @@ fn startup(
             &mut commands,
             layer_settings,
             &mut meshes,
-            tile_handle.clone(),
+            material_handle.clone(),
             0u16,
             layer_id,
             None,
